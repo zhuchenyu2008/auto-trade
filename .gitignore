@@ -3,4 +3,10 @@ dist/
 .vite/
 coverage/
 *.log
-
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.venv/
+.env
+apps/api/.env.local

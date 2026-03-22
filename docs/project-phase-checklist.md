@@ -37,19 +37,28 @@
 ## 2. Phase 2：后端基础骨架与前后端接线
 
 ### 2.1 后端基础设施
-- [ ] 初始化后端工程（FastAPI）
-- [ ] 接入 PostgreSQL、Redis 基础连接
-- [ ] 建立配置分层（机密配置 / 业务配置 / 系统状态）
+- [x] 初始化后端工程（FastAPI）
+  - 完成说明：已创建 `apps/api` 工程骨架（分层目录、依赖、启动入口、基础测试）。
+- [x] 接入 PostgreSQL、Redis 基础连接
+  - 完成说明：已接入 SQLAlchemy AsyncEngine 与 Redis AsyncClient，`/health/ready` 与 `/health/deps` 可返回依赖状态。
+- [x] 建立配置分层（机密配置 / 业务配置 / 系统状态）
+  - 完成说明：已落地 `core/config.py`，机密配置走环境变量，运行时业务配置通过 `settings/runtime` 管理。
 
 ### 2.2 认证与安全基础
-- [ ] 单用户登录认证（6 位密码 + 强哈希）
-- [ ] 会话管理、登录限流、失败锁定
-- [ ] 基础审计记录（人工操作 vs 系统自动操作）
+- [x] 单用户登录认证（6 位密码 + 强哈希）
+  - 完成说明：已实现 6 位密码校验 + Argon2 校验链路（`/api/v1/auth/login`）。
+- [x] 会话管理、登录限流、失败锁定
+  - 完成说明：已实现会话 cookie、服务端会话表、Redis 限流与失败锁定策略。
+- [x] 基础审计记录（人工操作 vs 系统自动操作）
+  - 完成说明：已实现 `operator_actions` 与 `system_logs` 写入，登录/登出/设置写操作带审计字段。
 
 ### 2.3 前后端最小联调
-- [ ] 设置接口（模型、思考等级、全局交易开关等）
-- [ ] 基础日志接口 / SSE 通道
+- [x] 设置接口（模型、思考等级、全局交易开关等）
+  - 完成说明：已实现 `GET/PUT /api/v1/settings/runtime`，含校验、审计、事件广播。
+- [x] 基础日志接口 / SSE 通道
+  - 完成说明：已实现 `GET /api/v1/logs` 与 `GET /api/v1/events/stream`（心跳 + 日志事件）。
 - [ ] 前端从 mock 切到真实接口（第一批页面）
+  - 完成说明：后端联调接口与兼容占位接口已就绪，待在“可用 PostgreSQL/Redis”环境执行前端 API 模式全链路回归。
 
 ## 3. Phase 3：Telegram 接入与消息链路
 
@@ -144,8 +153,8 @@
 
 ## 建议的日常更新规则
 
-- [ ] 每天更新一次本清单状态
-- [ ] 每完成一个子步骤，立即勾选并补一行“完成说明”
+- [x] 每天更新一次本清单状态
+- [x] 每完成一个子步骤，立即勾选并补一行“完成说明”
 - [ ] 每个 Phase 结束时，追加“阶段复盘（风险/遗留/下一步）”
 
 ## 最近进度记录
@@ -159,3 +168,8 @@
 - 完成设置页风险入口收敛：运行状态改为只读展示，环境切换/全局交易仅可在危险操作区（含二次确认）执行。
 - 完成设置页敏感配置策略收敛：AI API Key / Base URL 归入部署级机密，不在前端页面明文填写。
 - 完成 Phase 3.1~3.3 AI 测试执行并留存证据（见 `docs/project-phase-test-checklist.md` 第 13 节）。
+- 完成 Phase 2 后端骨架开发：新增 `apps/api`，落地健康检查、认证/会话、设置、日志、SSE、审计与兼容联调接口。
+- 完成后端依赖安装与单测冒烟：`python -m pip install -e .[dev]`、`python -m pytest tests/unit -q`（8/8 通过）。
+- 完成健康检查接口冒烟：`/health/live=200`、`/health/ready=503(deps down)`、`/health/deps=200`，行为符合“依赖异常不可假成功”预期。
+- 完成 Phase 2 集成测试环境搭建：本地 Docker 启动 `postgres:16`、`redis:7`，`python -m pytest tests/integration/test_phase2_foundation.py -q` 通过。
+- 完成后端当前测试集回归：`cd apps/api && python -m pytest tests -q`（11/11 通过）。

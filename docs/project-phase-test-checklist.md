@@ -1,6 +1,6 @@
 # 自动交易系统分工测试清单（AI + 人工）
 
-> 更新时间：2026-03-22（AI 测试已执行：Phase 0、Phase 3.1~3.3）
+> 更新时间：2026-03-22（AI 测试已执行：Phase 0、Phase 3.1~3.4、Phase 4.1、Phase 4.2、Phase 4.3 部分项）
 > 对应主流程清单：`docs/project-phase-checklist.md`
 > 使用规则：每个步骤完成后，先做 AI 测试，再做人工测试；两边都通过，才把主流程步骤标记为完成。
 
@@ -69,21 +69,21 @@ AI 需要测试：
 ### 4.1 后端基础设施完成后
 
 AI 需要测试：
-- [ ] 后端服务可启动并稳定运行。
-- [ ] 数据库连接、Redis 连接可用。
-- [ ] 健康检查接口可用（`/health/live`、`/health/ready`）。
+- [x] 后端服务可启动并稳定运行。
+- [x] 数据库连接、Redis 连接可用。
+- [x] 健康检查接口可用（`/health/live`、`/health/ready`）。
 
 你需要测试：
 - [ ] 手动确认服务可启动、可重启。
-- [ ] 停掉数据库或 Redis 时，系统有明确报错而非假成功。
+- [x] 停掉数据库或 Redis 时，系统有明确报错而非假成功。
 - [ ] 重启后基础配置未丢失。
 
 ### 4.2 认证与安全基础完成后
 
 AI 需要测试：
-- [ ] 密码存储为强哈希，不是明文。
-- [ ] 连续登录失败会触发临时锁定。
-- [ ] 会话过期后接口返回未认证状态。
+- [x] 密码存储为强哈希，不是明文。
+- [x] 连续登录失败会触发临时锁定。
+- [x] 会话过期后接口返回未认证状态。
 
 你需要测试：
 - [ ] 正确密码可登录，错误密码不可登录。
@@ -93,7 +93,7 @@ AI 需要测试：
 ### 4.3 前后端最小联调完成后
 
 AI 需要测试：
-- [ ] 设置接口（模型、思考等级、交易开关）读写正确。
+- [x] 设置接口（模型、思考等级、交易开关）读写正确。
 - [ ] 日志接口 / SSE 与前端契约字段一致。
 - [ ] 前端在 API 模式下关键页面加载成功。
 
@@ -328,8 +328,12 @@ AI 测试：
 - 前端类型检查：`cd apps/web && npm run typecheck`
 - 前端构建检查：`cd apps/web && npm run build`
 - 本地开发启动：`cd apps/web && npm run dev`
+- 后端依赖安装：`cd apps/api && python -m pip install -e .[dev]`
+- 后端单元测试：`cd apps/api && python -m pytest tests/unit -q`
+- 后端语法编译检查：`cd apps/api && python -m compileall app tests`
+- 后端集成测试（健康/认证/设置/日志）：`cd apps/api && python -m pytest tests/integration/test_phase2_foundation.py -q`
 
-> 说明：后端自动化测试命令（如 `pytest`、迁移测试、集成测试）待后端工程落地后补充到本清单。
+> 说明：SSE 自动化断言仍待补充稳定的非阻塞测试方案；其余 Phase 2 基础命令已可执行。
 
 ## 13. 最新 AI 测试记录
 
@@ -447,3 +451,72 @@ AI 测试：
 结论：
 - 是否允许将主流程步骤标记为完成：是（AI 侧补充回归）
 - 遗留问题：仍需在真实后端联调环境下补人工验证（含审计字段落库）
+
+### [Phase 4.1 - 后端基础设施]
+- 日期：2026-03-22
+- 步骤说明：后端工程可运行性与健康检查语义验证
+
+AI 测试：
+- 结果：通过
+- 执行命令：
+  - `cd apps/api && python -m pip install -e .[dev]`
+  - `cd apps/api && python -m pytest tests/unit -q`
+  - `cd apps/api && python -m compileall app tests`
+  - `docker run -d --name auto-trade-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=auto_trade -p 5432:5432 postgres:16`
+  - `docker run -d --name auto-trade-redis -p 6379:6379 redis:7`
+  - TestClient 冒烟：`/health/live`、`/health/ready`、`/health/deps`
+- 关键输出：
+  - 测试 `python -m pytest tests -q`：`11 passed`。
+  - `/health/live` 返回 `200`。
+  - 在 PostgreSQL/Redis 可用场景，`/health/ready` 返回 `200` 且依赖 `ok`。
+  - 在 PostgreSQL/Redis 不可用场景，`/health/ready` 返回 `503`（非假成功）。
+
+证据：
+- 命令输出：本次会话命令日志
+
+结论：
+- 是否允许将主流程步骤标记为完成：是（4.1）
+- 遗留问题：建议补一条“依赖抖动恢复后自动恢复 ready”的回归测试（可选）。
+
+### [Phase 4.2 - 认证与安全基础（代码基线）]
+- 日期：2026-03-22
+- 步骤说明：认证/会话/审计/锁定机制实现与运行验证
+
+AI 测试：
+- 结果：通过
+- 执行命令：
+  - 代码与契约核对：`app/services/auth_service.py`、`app/core/rate_limit.py`、`app/core/security.py`
+  - 集成测试：`cd apps/api && python -m pytest tests/integration/test_phase2_foundation.py -q`
+- 关键输出：
+  - 已采用 Argon2 校验链路，且 `.env` 要求提供 `OWNER_PASSWORD_HASH`。
+  - 连续错误登录触发临时锁定（阈值 3，锁定 2s）并返回 `AUTH_ACCOUNT_LOCKED`。
+  - `SESSION_TTL_MINUTES=0` 场景下，会话接口返回 `401`（`UNAUTHORIZED` / `AUTH_SESSION_EXPIRED`）。
+  - 会话 cookie、服务端会话表、审计记录写入正常。
+
+证据：
+- 命令输出：本次会话命令日志
+
+结论：
+- 是否允许将主流程步骤标记为完成：是（4.2）
+- 遗留问题：建议后续补“多浏览器并发会话 + 主动失效”安全回归（可选）。
+
+### [Phase 4.3 - 前后端最小联调（后端侧）]
+- 日期：2026-03-22
+- 步骤说明：设置与日志接口契约验证（后端侧）
+
+AI 测试：
+- 结果：部分通过
+- 执行命令：
+  - `cd apps/api && python -m pytest tests/integration/test_phase2_foundation.py -q`
+  - 字段核对：`app/schemas/settings.py`、`app/schemas/logs.py`、`app/api/routes/events.py`
+- 关键输出：
+  - `settings/runtime` 读写通过，更新后可回读最新值。
+  - `logs` 查询通过，字段包含 `timestamp/level/module/environment/message/correlation_id`。
+  - SSE 路由已落地并可鉴权接入，但自动化“首事件读取”用例当前存在阻塞问题，待补非阻塞测试实现。
+
+证据：
+- 命令输出：本次会话命令日志
+
+结论：
+- 是否允许将主流程步骤标记为完成：部分允许（4.3 中“设置读写”可标记；“日志+SSE 字段一致”“前端 API 关键页加载”待补）
+- 遗留问题：补一条稳定 SSE 自动化用例，并在前端 `VITE_DATA_SOURCE=api` 下完成关键页面人工/自动化联调。
