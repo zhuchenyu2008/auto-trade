@@ -140,6 +140,13 @@ flowchart LR
 - [web-console/04-api-contract-draft.md](./web-console/04-api-contract-draft.md)：前端优先阶段的 API 与 SSE 契约草案
 - [web-console/05-frontend-implementation-notes.md](./web-console/05-frontend-implementation-notes.md)：已落地代码结构、mock 策略和后续接入说明
 - [web-console/06-frontend-engineering-spec.md](./web-console/06-frontend-engineering-spec.md)：实施级前端规范（状态机、接口接入、SSE、安全、测试与验收）
+- [10-backend-foundation.md](./10-backend-foundation.md)：Phase 2 后端基础骨架父文档，说明后端最小交付边界和子文档导航
+- [backend-foundation/01-service-architecture.md](./backend-foundation/01-service-architecture.md)：后端服务拓扑、工程骨架、依赖注入、健康检查与降级边界
+- [backend-foundation/02-capability-and-flow-specs.md](./backend-foundation/02-capability-and-flow-specs.md)：Phase 2 能力分块、主流程和异常路径
+- [backend-foundation/03-auth-and-security-baseline.md](./backend-foundation/03-auth-and-security-baseline.md)：单用户认证、会话、限流、锁定、审计与安全基线
+- [backend-foundation/04-api-contract-draft.md](./backend-foundation/04-api-contract-draft.md)：Phase 2 REST/SSE 契约草案、对象结构与错误码
+- [backend-foundation/05-backend-implementation-notes.md](./backend-foundation/05-backend-implementation-notes.md)：后端当前实现快照、差距和首批落地建议
+- [backend-foundation/06-backend-engineering-spec.md](./backend-foundation/06-backend-engineering-spec.md)：实施级后端规范（工程、配置、事务、安全、测试与验收）
 - [08-openclaw-and-ops.md](./08-openclaw-and-ops.md)：OpenClaw 能力边界、topic、skill、操作约束
 - [09-deployment-and-observability.md](./09-deployment-and-observability.md)：部署、配置、日志、监控、恢复
 
@@ -148,7 +155,7 @@ flowchart LR
 当前技术设计与需求文档保持一致，采用“前端优先”的实施顺序：
 
 1. 先确定 Web 控制台视觉和信息架构。
-2. 再补后端骨架和基础 API，让前端尽快接真数据。
+2. 再补后端骨架和基础 API，让前端尽快接真数据（详见 `10-backend-foundation.md` 与 `backend-foundation/` 子文档）。
 3. 然后打通 Telegram、AI、OKX 模拟盘、账本等核心链路。
 4. 最后补 OpenClaw 与上线前强化能力。
 
