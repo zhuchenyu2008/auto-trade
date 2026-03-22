@@ -2,32 +2,32 @@
 
 ## 1. 目标
 
-本文件用于支撑“前端优先”实施顺序。其作用不是把后端实现细节写死，而是先冻结前端首批需要依赖的对象结构、字段语义和实时事件类型，保证：
+本文件用于支撑“前端优先”实施顺序，冻结前端首批依赖的对象结构、字段语义、实时事件类型和错误处理口径，保证：
 
-- 原型阶段与开发阶段字段一致
-- 前端 mock 数据与后端真实数据形状一致
-- 关键状态枚举尽早稳定
+- 原型阶段与开发阶段字段一致。
+- 前端 mock 数据与后端真实数据形状一致。
+- 首批枚举、分页、幂等、错误码和 SSE 语义尽早稳定。
+
+> 说明：本文件是 V1 契约草案。若与需求文档冲突，以需求边界为准并回写本文件。
 
 ## 2. 通用约定
 
 ### 2.1 路径前缀
-
-建议统一使用：
 
 - REST：`/api/v1/...`
 - SSE：`/api/v1/events/stream`
 
 ### 2.2 认证方式
 
-V1 为单用户模式，建议采用服务端会话：
+V1 为单用户模式，采用服务端会话：
 
-- 登录成功后写入 `HttpOnly` session cookie
-- 前端通过 `/api/v1/auth/session` 获取当前会话信息
-- 前端不在本地存储敏感 token
+- 登录成功后写入 `HttpOnly` session cookie。
+- 前端通过 `GET /api/v1/auth/session` 获取当前会话事实。
+- 前端不在本地存储敏感 token。
 
 ### 2.3 响应包络
 
-建议统一采用以下响应结构：
+统一响应结构：
 
 ```json
 {
@@ -40,7 +40,7 @@ V1 为单用户模式，建议采用服务端会话：
 }
 ```
 
-出错时：
+业务错误时：
 
 ```json
 {
@@ -58,14 +58,40 @@ V1 为单用户模式，建议采用服务端会话：
 
 ### 2.4 字段约定
 
-- 时间统一返回 ISO 8601 UTC 字符串
-- 金额、价格、数量统一返回字符串，避免精度丢失
-- 所有列表对象都应带稳定主键
-- 所有关联对象优先暴露 `correlation_id`
+- 时间：ISO 8601 UTC 字符串。
+- 金额、价格、数量：字符串，避免精度丢失。
+- 所有列表对象：稳定主键（`*_id`）。
+- 链路对象优先暴露 `correlation_id`。
+- 涉及交易事实和风险边界的对象必须有 `environment`。
 
-### 2.5 首批枚举
+### 2.5 列表分页约定
 
-建议尽早冻结以下枚举：
+列表接口统一采用 cursor 分页：
+
+- 请求参数：`cursor`、`limit`（建议默认 50，上限 200）。
+- 响应结构：
+
+```json
+{
+  "items": [],
+  "page": {
+    "next_cursor": "cursor_abc",
+    "has_more": true
+  }
+}
+```
+
+### 2.6 幂等约定
+
+以下写操作建议支持幂等键（建议请求头 `X-Idempotency-Key`）：
+
+- 人工确认通过/拒绝
+- 高风险动作（环境切换、全局交易开关）
+- 频道新增与编辑
+
+重复请求应返回同一业务结果或明确冲突错误码，不可产生重复副作用。
+
+### 2.7 首批枚举冻结
 
 - `environment`: `paper` | `live`
 - `health_status`: `healthy` | `degraded` | `down`
@@ -74,7 +100,22 @@ V1 为单用户模式，建议采用服务端会话：
 - `order_status`: `pending` | `partially_filled` | `filled` | `canceled` | `rejected`
 - `position_side`: `long` | `short`
 
-## 3. 首批页面与接口映射
+### 2.8 审计透传头约定
+
+前端发起关键写操作时，建议透传以下请求头：
+
+- `X-Operator-Source`: 固定 `web-console`
+- `X-Idempotency-Key`: 幂等键
+- `X-Correlation-Id`: 本次动作链路号
+- `X-Audit-Action`: 动作名（如 `channel.create`）
+- `X-Audit-Target`: 目标对象（如 `channel_id` / `confirmation_id`）
+
+说明：
+
+- 审计头用于增强后端 `operator_actions` 记录，不替代业务请求体字段。
+- 后端若不识别额外头字段，应忽略而不是报错。
+
+## 3. 页面与接口映射
 
 | 页面 | 首批接口 |
 | --- | --- |
@@ -98,6 +139,7 @@ V1 为单用户模式，建议采用服务端会话：
   "authenticated": true,
   "environment": "paper",
   "global_trading_enabled": true,
+  "health_status": "healthy",
   "pending_manual_confirmation_count": 2
 }
 ```
@@ -126,13 +168,14 @@ V1 为单用户模式，建议采用服务端会话：
       "status": "enabled",
       "last_fetch_at": "2026-03-21T07:59:30Z",
       "last_success_at": "2026-03-21T07:59:30Z",
-      "last_error_summary": null
+      "last_error_summary": null,
+      "last_message_result": "new_message_processed"
     }
   ]
 }
 ```
 
-### 4.3 Channel List Item
+### 4.3 Channel Item
 
 ```json
 {
@@ -181,14 +224,14 @@ V1 为单用户模式，建议采用服务端会话：
 }
 ```
 
-详情对象需额外包含：
+详情对象至少补充：
 
-- 原始消息
-- 上下文摘要
-- AI 决策详情
-- 关键价格参数
-- 失效原因
-- 当前可执行性校验结果
+- `raw_message`
+- `context_summary`
+- `ai_decision`
+- `key_price_params`
+- `invalid_reason`
+- `executable`
 
 ### 4.6 Order Item
 
@@ -224,7 +267,27 @@ V1 为单用户模式，建议采用服务端会话：
 }
 ```
 
-## 5. 首批 REST 接口草案
+### 4.8 Runtime Settings
+
+```json
+{
+  "environment": "paper",
+  "global_trading_enabled": true,
+  "model": "gpt-5.4",
+  "reasoning_level": "medium",
+  "default_leverage": "25",
+  "manual_confirmation_threshold": "0.66",
+  "context_window_size": 8,
+  "new_position_capital_range": {
+    "min": "0.40",
+    "max": "0.80"
+  }
+}
+```
+
+说明：该对象仅包含非机密运行参数；`ai_api_key`、`base_url` 等供应商凭据属于部署级机密配置，不通过此对象下发。
+
+## 5. REST 接口草案
 
 ### 5.1 认证
 
@@ -232,7 +295,7 @@ V1 为单用户模式，建议采用服务端会话：
 - `GET /api/v1/auth/session`
 - `POST /api/v1/auth/logout`
 
-`POST /api/v1/auth/login` 请求体建议为：
+`POST /api/v1/auth/login` 请求体：
 
 ```json
 {
@@ -244,7 +307,7 @@ V1 为单用户模式，建议采用服务端会话：
 
 - `GET /api/v1/overview/summary`
 
-该接口应一次性返回总览页首屏所需的高优先级摘要，避免首页首屏分散请求过多。
+说明：总览接口应一次性返回首屏高优先级摘要，避免页面首屏多请求拼装。
 
 ### 5.3 频道
 
@@ -252,13 +315,25 @@ V1 为单用户模式，建议采用服务端会话：
 - `POST /api/v1/channels`
 - `PATCH /api/v1/channels/{channel_id}`
 
-若首轮暂不做硬删除，则不提供物理删除接口，改为状态切换或逻辑删除字段。
+`GET /api/v1/channels` 查询参数建议：
+
+- `status`
+- `q`
+- `cursor`
+- `limit`
+
+`PATCH /api/v1/channels/{channel_id}` 请求体建议支持：
+
+- `channel_name`
+- `source_type`
+- `source_ref`
+- `status`（`enabled` / `disabled`）
 
 ### 5.4 日志
 
 - `GET /api/v1/logs`
 
-建议支持以下查询参数：
+查询参数建议：
 
 - `from`
 - `to`
@@ -277,7 +352,11 @@ V1 为单用户模式，建议采用服务端会话：
 - `POST /api/v1/manual-confirmations/{confirmation_id}/approve`
 - `POST /api/v1/manual-confirmations/{confirmation_id}/reject`
 
-批准与拒绝动作建议幂等。若确认项已失效，应返回明确错误码，而不是静默成功。
+约束：
+
+- approve/reject 必须幂等。
+- 确认前服务端必须再次校验环境和可执行性。
+- 已失效确认项返回明确错误码，不得静默成功。
 
 ### 5.6 订单与持仓
 
@@ -286,29 +365,33 @@ V1 为单用户模式，建议采用服务端会话：
 - `GET /api/v1/real-positions`
 - `GET /api/v1/virtual-positions`
 
+建议支持通用查询参数：
+
+- `environment`
+- `channel_id`（适用时）
+- `symbol`（适用时）
+- `correlation_id`（适用时）
+- `cursor`
+- `limit`
+
 ### 5.7 设置
 
 - `GET /api/v1/settings/runtime`
 - `PUT /api/v1/settings/runtime`
 
-运行设置对象建议至少包含：
+约束：
 
-- 当前环境
-- 全局交易开关
-- 模型
-- 思考等级
-- 默认杠杆
-- 人工确认阈值
-- 上下文窗口长度
-- 新开仓资金比例范围
+- 高影响配置修改需要写审计记录。
+- 修改结果应返回“已生效”或“生效方式说明”。
+- `GET/PUT /settings/runtime` 不返回也不接收 AI API Key / Base URL 等机密字段。
 
 ## 6. SSE 事件草案
 
-建议 V1 使用统一事件流：
+### 6.1 事件流入口
 
 - `GET /api/v1/events/stream`
 
-首批事件类型建议包括：
+### 6.2 首批事件类型
 
 - `system.snapshot_updated`
 - `log.appended`
@@ -317,12 +400,14 @@ V1 为单用户模式，建议采用服务端会话：
 - `order.changed`
 - `virtual_position.changed`
 
-事件格式建议如下：
+### 6.3 事件结构
 
 ```json
 {
+  "event_id": "evt_1",
   "event_type": "log.appended",
   "occurred_at": "2026-03-21T08:00:00Z",
+  "environment": "paper",
   "payload": {
     "log_id": "log_1",
     "correlation_id": "corr_123"
@@ -330,15 +415,64 @@ V1 为单用户模式，建议采用服务端会话：
 }
 ```
 
-前端应根据 `event_type` 做局部刷新，而不是每次事件都全页重拉。
+### 6.4 事件处理约束
 
-## 7. 前端优先阶段的 mock 规则
+- 前端按 `event_type` 局部刷新，不做全页重拉。
+- 事件顺序以最终状态一致为准，必要时回读对应 REST。
+- SSE 断线后前端可携带 `Last-Event-ID` 重连（若服务端支持）。
 
-在后端未完成前，前端 mock 数据必须遵守以下规则：
+## 7. 错误码草案
 
-- 字段名与枚举值严格复用本文件
-- 假数据也保留 `correlation_id`
-- 假数据中也区分 `paper` 与 `live`
-- 假数据中也区分真实对象与虚拟对象
+以下错误码建议在前后端先冻结首批处理语义：
 
-这样后续从 mock 切换到真实接口时，只需要替换数据源，不需要重写页面语义。
+- `SESSION_INVALID`
+- `SESSION_LOCKED`
+- `RATE_LIMITED`
+- `MANUAL_CONFIRMATION_EXPIRED`
+- `MANUAL_CONFIRMATION_INVALIDATED`
+- `MANUAL_CONFIRMATION_ALREADY_RESOLVED`
+- `ENVIRONMENT_MISMATCH`
+- `ACTION_NOT_ALLOWED`
+- `RISK_CONFIRMATION_REQUIRED`
+- `VALIDATION_ERROR`
+- `RESOURCE_NOT_FOUND`
+- `CONFLICT`
+- `INTERNAL_ERROR`
+
+错误码处理原则：
+
+- 同一错误码在 Web 与 OpenClaw 的用户可见语义应一致。
+- 错误对象至少包含 `code`、`message`，可选 `details`。
+
+## 8. 并发与一致性约束
+
+### 8.1 人工确认并发
+
+- 同一确认项只允许一次成功处理。
+- 竞争场景返回 `MANUAL_CONFIRMATION_ALREADY_RESOLVED` 或 `CONFLICT`。
+
+### 8.2 环境切换并发
+
+- 切环境属于高风险动作，重复提交不得触发多次状态切换。
+- 当前端确认后状态已变化，返回 `CONFLICT` 并附带最新状态。
+
+### 8.3 全局交易开关并发
+
+- 允许幂等操作（重复开启/关闭返回当前状态）。
+- 所有变更需写审计。
+
+## 9. 前端优先阶段 mock 规则
+
+后端未完成前，前端 mock 必须遵守：
+
+- 字段名和枚举严格复用本文件。
+- mock 也保留 `correlation_id`。
+- mock 中明确区分 `paper` 与 `live`。
+- mock 中明确区分真实对象与虚拟对象。
+- mock 默认值应尽量贴近需求默认值（如默认杠杆、资金比例范围、上下文窗口）。
+
+## 10. 变更控制
+
+- 若新增字段：保持向后兼容并补充默认值语义。
+- 若修改枚举：必须同步更新前端类型、页面文案和测试。
+- 若删除字段：先标记弃用并经历一个兼容周期。

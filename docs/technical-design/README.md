@@ -139,6 +139,7 @@ flowchart LR
 - [web-console/03-visual-system.md](./web-console/03-visual-system.md)：视觉方向、设计 token、组件气质与动效原则
 - [web-console/04-api-contract-draft.md](./web-console/04-api-contract-draft.md)：前端优先阶段的 API 与 SSE 契约草案
 - [web-console/05-frontend-implementation-notes.md](./web-console/05-frontend-implementation-notes.md)：已落地代码结构、mock 策略和后续接入说明
+- [web-console/06-frontend-engineering-spec.md](./web-console/06-frontend-engineering-spec.md)：实施级前端规范（状态机、接口接入、SSE、安全、测试与验收）
 - [08-openclaw-and-ops.md](./08-openclaw-and-ops.md)：OpenClaw 能力边界、topic、skill、操作约束
 - [09-deployment-and-observability.md](./09-deployment-and-observability.md)：部署、配置、日志、监控、恢复
 

@@ -11,7 +11,7 @@
 - 页面级职责边界
 - 前后端契约草案
 
-具体页面与组件细节不再继续堆在本文件中，而是在 `web-console/` 子目录分拆维护。
+具体页面与组件细节不再继续堆在本文件中，而是在 `web-console/` 子目录分拆维护；其中“实施级”规则与跨文档对齐要求统一沉淀在 `06-frontend-engineering-spec.md`。
 
 ## 2. 设计目标
 
@@ -89,6 +89,7 @@ V1 Web 控制台推荐采用以下技术组合：
 - [web-console/03-visual-system.md](./web-console/03-visual-system.md)：视觉方向、设计 token、组件气质和动效原则
 - [web-console/04-api-contract-draft.md](./web-console/04-api-contract-draft.md)：前端优先阶段的 API 与 SSE 契约草案
 - [web-console/05-frontend-implementation-notes.md](./web-console/05-frontend-implementation-notes.md)：已落地代码结构、mock 策略和后续接入说明
+- [web-console/06-frontend-engineering-spec.md](./web-console/06-frontend-engineering-spec.md)：实施级前端规范，覆盖状态机、接口接入、SSE、安全审计、性能、测试与验收
 
 ## 7. 实施顺序
 
