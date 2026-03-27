@@ -44,18 +44,26 @@ auto-trade/
 - PostgreSQL 16+（或兼容版本）
 - Redis 7+（或兼容版本）
 
-## 快速开始
+## 快速开始（真实 API 模式）
+
+以下命令默认从仓库根目录（`auto-trade/`）执行。
 
 ### 1）启动依赖（PostgreSQL + Redis）
 
-如果你本地使用 Docker：
+首次运行：
 
 ```bash
 docker run -d --name auto-trade-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=auto_trade -p 5432:5432 postgres:16
 docker run -d --name auto-trade-redis -p 6379:6379 redis:7
 ```
 
-### 2）启动 API（`apps/api`）
+如果容器已创建过：
+
+```bash
+docker start auto-trade-postgres auto-trade-redis
+```
+
+### 2）配置并启动 API（`apps/api`）
 
 ```bash
 cd apps/api
@@ -63,38 +71,83 @@ python -m pip install -e .[dev]
 cp .env.example .env
 ```
 
-生成密码哈希（示例密码：`123456`）：
+PowerShell 可用：`Copy-Item .env.example .env -Force`
+
+生成 `OWNER_PASSWORD_HASH`（示例密码为 `123456`）：
 
 ```bash
 python -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('123456'))"
 ```
 
-把生成结果填入 `.env` 的 `OWNER_PASSWORD_HASH`，然后启动：
+把生成结果填入 `.env`，然后启动：
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-API 地址：`http://127.0.0.1:8000`
+API 地址：`http://127.0.0.1:8000`（前缀 `/api/v1`）
 
-### 3）启动 Web（`apps/web`）
+建议在 `apps/api/.env` 中配置：
+
+```env
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
+
+### 3）配置并启动 Web（`apps/web`）
 
 ```bash
 cd apps/web
 npm install
 cp .env.example .env
-npm run dev
 ```
 
-Web 地址：`http://127.0.0.1:5173`
+PowerShell 可用：`Copy-Item .env.example .env -Force`
 
-如需连接真实后端，请设置：
+将 Web 环境切到 API 模式：
 
 ```env
 VITE_DATA_SOURCE=api
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 VITE_ENABLE_SSE=true
 ```
+
+然后启动前端：
+
+```bash
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Web 地址：`http://127.0.0.1:5173`
+
+### 4）首次登录与快速验收
+
+- 如果你使用了上面的示例哈希命令，登录密码是 `123456`。
+- 打开 `/settings`、`/logs`，确认真实 API 数据可加载。
+- 可选回归命令：
+
+```bash
+cd apps/api
+python -m pytest tests -q
+```
+
+```bash
+cd apps/web
+npx playwright test tests/phase-4-3-api-real-backend.spec.ts --workers=1
+npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1
+```
+
+### 5）常见问题
+
+- 登录预检 `OPTIONS /api/v1/auth/login` 返回 `400`：
+  `CORS_ORIGINS` 没包含当前前端来源；本地开发建议同时包含 `localhost` 与 `127.0.0.1`。
+- 登录后停在 `/login`，且 API 日志出现 `POST /auth/login 404`：
+  检查 `VITE_API_BASE_URL` 是否为 `http://127.0.0.1:8000/api/v1`。
+- 登录成功但会话像“没登录”：
+  避免浏览器/API 混用 `localhost` 和 `127.0.0.1`，两边请保持同一主机名。
+- `/health/ready` 或 `/auth/login` 返回 `503`：
+  说明 PostgreSQL/Redis 不可用或连接配置错误。
+- `8000` 或 `5173` 端口被占用：
+  先停止现有进程，或改端口并同步修改环境变量。
 
 ## 环境变量
 

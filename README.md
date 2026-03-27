@@ -43,18 +43,26 @@ auto-trade/
 - PostgreSQL 16+ (or compatible)
 - Redis 7+ (or compatible)
 
-## Quick Start
+## Quick Start (Real API Mode)
+
+Run from repo root (`auto-trade/`).
 
 ### 1) Start dependencies (PostgreSQL + Redis)
 
-If you use Docker locally:
+If this is your first run:
 
 ```bash
 docker run -d --name auto-trade-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=auto_trade -p 5432:5432 postgres:16
 docker run -d --name auto-trade-redis -p 6379:6379 redis:7
 ```
 
-### 2) Run API (`apps/api`)
+If containers already exist:
+
+```bash
+docker start auto-trade-postgres auto-trade-redis
+```
+
+### 2) Configure and run API (`apps/api`)
 
 ```bash
 cd apps/api
@@ -62,38 +70,83 @@ python -m pip install -e .[dev]
 cp .env.example .env
 ```
 
-Generate password hash (example password `123456`):
+PowerShell equivalent for copy: `Copy-Item .env.example .env -Force`
+
+Generate `OWNER_PASSWORD_HASH` (example password is `123456`):
 
 ```bash
 python -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('123456'))"
 ```
 
-Put the generated hash into `OWNER_PASSWORD_HASH` in `.env`, then start:
+Paste the generated hash into `.env`, then run:
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
-API base URL: `http://127.0.0.1:8000`
+API URL: `http://127.0.0.1:8000` (prefix: `/api/v1`)
 
-### 3) Run Web (`apps/web`)
+Recommended in `apps/api/.env`:
+
+```env
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+```
+
+### 3) Configure and run Web (`apps/web`)
 
 ```bash
 cd apps/web
 npm install
 cp .env.example .env
-npm run dev
 ```
 
-Web URL: `http://127.0.0.1:5173`
+PowerShell equivalent for copy: `Copy-Item .env.example .env -Force`
 
-To connect web to real backend, set:
+Set web env to API mode:
 
 ```env
 VITE_DATA_SOURCE=api
 VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
 VITE_ENABLE_SSE=true
 ```
+
+Then start web:
+
+```bash
+npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Web URL: `http://127.0.0.1:5173`
+
+### 4) First login and quick validation
+
+- Login with `123456` (if you used the example hash command above).
+- Open `/settings` and `/logs` to confirm API data is loading.
+- Optional regression checks:
+
+```bash
+cd apps/api
+python -m pytest tests -q
+```
+
+```bash
+cd apps/web
+npx playwright test tests/phase-4-3-api-real-backend.spec.ts --workers=1
+npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1
+```
+
+### 5) Troubleshooting
+
+- Login preflight `OPTIONS /api/v1/auth/login` returns `400`:
+  set `CORS_ORIGINS` to include your current web origin (for local dev, include both `localhost` and `127.0.0.1`).
+- Login stays on `/login` and API logs show `POST /auth/login 404`:
+  ensure `VITE_API_BASE_URL` is exactly `http://127.0.0.1:8000/api/v1`.
+- Login succeeds but session seems lost:
+  do not mix hosts across browser/API (avoid `localhost` + `127.0.0.1` split). Keep them consistent.
+- `/health/ready` or `/auth/login` returns `503`:
+  PostgreSQL/Redis is unavailable or misconfigured.
+- Port conflict on `8000` or `5173`:
+  stop the existing process, or start on another port and update env accordingly.
 
 ## Environment Variables
 
