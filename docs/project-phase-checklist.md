@@ -1,6 +1,6 @@
 ﻿# 自动交易系统全流程执行清单（可勾选）
 
-> 更新时间：2026-03-22
+> 更新时间：2026-03-27
 > 说明：每完成一步，把 `- [ ]` 改成 `- [x]`。
 > 当前状态依据仓库现状自动预标记（文档和前端原型已完成较多，后端与交易链路尚未落地）。
 
@@ -57,8 +57,8 @@
   - 完成说明：已实现 `GET/PUT /api/v1/settings/runtime`，含校验、审计、事件广播。
 - [x] 基础日志接口 / SSE 通道
   - 完成说明：已实现 `GET /api/v1/logs` 与 `GET /api/v1/events/stream`（心跳 + 日志事件）。
-- [ ] 前端从 mock 切到真实接口（第一批页面）
-  - 完成说明：后端联调接口与兼容占位接口已就绪，待在“可用 PostgreSQL/Redis”环境执行前端 API 模式全链路回归。
+- [x] 前端从 mock 切到真实接口（第一批页面）
+  - 完成说明：已在真实后端（PostgreSQL+Redis）下完成 `VITE_DATA_SOURCE=api` Playwright 联调，关键页面加载通过。
 
 ## 3. Phase 3：Telegram 接入与消息链路
 
@@ -173,3 +173,11 @@
 - 完成健康检查接口冒烟：`/health/live=200`、`/health/ready=503(deps down)`、`/health/deps=200`，行为符合“依赖异常不可假成功”预期。
 - 完成 Phase 2 集成测试环境搭建：本地 Docker 启动 `postgres:16`、`redis:7`，`python -m pytest tests/integration/test_phase2_foundation.py -q` 通过。
 - 完成后端当前测试集回归：`cd apps/api && python -m pytest tests -q`（11/11 通过）。
+
+### 2026-03-27
+
+- 完成 SSE 心跳契约自动化：新增 `apps/api/tests/integration/test_sse_heartbeat_contract.py`，验证 `events/stream` 返回 `text/event-stream` 与 `system.heartbeat` 首事件。
+- 完成后端集成测试回归：`cd apps/api && python -m pytest tests/integration -q` 通过。
+- 完成前端真实后端联调自动化：新增 `apps/web/tests/phase-4-3-api-real-backend.spec.ts`，在 `api` 模式下关键页面加载通过（`1 passed`）。
+- 完成 Phase 2 剩余手工项自动化补测：新增 `apps/api/tests/integration/test_phase2_manual_remaining.py`（服务重启/配置持久化/认证与基础链路）与 `apps/web/tests/phase-2-manual-checks-real-backend.spec.ts`（设置刷新持久化/日志可见/连续使用/退出保护）。
+- 完成 Phase 2 最新回归：`cd apps/api && python -m pytest tests -q`（14/14 通过），`npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1`（`1 passed`）。

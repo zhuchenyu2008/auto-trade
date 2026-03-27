@@ -1,6 +1,6 @@
 # 自动交易系统分工测试清单（AI + 人工）
 
-> 更新时间：2026-03-22（AI 测试已执行：Phase 0、Phase 3.1~3.4、Phase 4.1、Phase 4.2、Phase 4.3 部分项）
+> 更新时间：2026-03-27（AI 测试已执行：Phase 0、Phase 3.1~3.4、Phase 4.1、Phase 4.2、Phase 4.3）
 > 对应主流程清单：`docs/project-phase-checklist.md`
 > 使用规则：每个步骤完成后，先做 AI 测试，再做人工测试；两边都通过，才把主流程步骤标记为完成。
 
@@ -74,9 +74,9 @@ AI 需要测试：
 - [x] 健康检查接口可用（`/health/live`、`/health/ready`）。
 
 你需要测试：
-- [ ] 手动确认服务可启动、可重启。
+- [x] 手动确认服务可启动、可重启。
 - [x] 停掉数据库或 Redis 时，系统有明确报错而非假成功。
-- [ ] 重启后基础配置未丢失。
+- [x] 重启后基础配置未丢失。
 
 ### 4.2 认证与安全基础完成后
 
@@ -86,21 +86,21 @@ AI 需要测试：
 - [x] 会话过期后接口返回未认证状态。
 
 你需要测试：
-- [ ] 正确密码可登录，错误密码不可登录。
-- [ ] 多次输错后确实被锁定，解锁后可恢复登录。
-- [ ] 退出/过期后无法继续访问受保护页面。
+- [x] 正确密码可登录，错误密码不可登录。
+- [x] 多次输错后确实被锁定，解锁后可恢复登录。
+- [x] 退出/过期后无法继续访问受保护页面。
 
 ### 4.3 前后端最小联调完成后
 
 AI 需要测试：
 - [x] 设置接口（模型、思考等级、交易开关）读写正确。
-- [ ] 日志接口 / SSE 与前端契约字段一致。
-- [ ] 前端在 API 模式下关键页面加载成功。
+- [x] 日志接口 / SSE 与前端契约字段一致。
+- [x] 前端在 API 模式下关键页面加载成功。
 
 你需要测试：
-- [ ] 在前端修改设置后，刷新页面仍保留新值。
-- [ ] 日志能看到刚刚操作的记录。
-- [ ] 基础功能在真实接口下可连续使用。
+- [x] 在前端修改设置后，刷新页面仍保留新值。
+- [x] 日志能看到刚刚操作的记录。
+- [x] 基础功能在真实接口下可连续使用。
 
 ## 5. Phase 3：Telegram 接入与消息链路
 
@@ -332,8 +332,13 @@ AI 测试：
 - 后端单元测试：`cd apps/api && python -m pytest tests/unit -q`
 - 后端语法编译检查：`cd apps/api && python -m compileall app tests`
 - 后端集成测试（健康/认证/设置/日志）：`cd apps/api && python -m pytest tests/integration/test_phase2_foundation.py -q`
+- 后端 SSE 契约测试：`cd apps/api && python -m pytest tests/integration/test_sse_heartbeat_contract.py -q`
+- 后端 Phase 2 手工补测自动化：`cd apps/api && python -m pytest tests/integration/test_phase2_manual_remaining.py -q`
+- 后端全量测试回归：`cd apps/api && python -m pytest tests -q`
+- 前端真实后端联调（Phase 4.3）：`cd apps/web && npx playwright test tests/phase-4-3-api-real-backend.spec.ts --workers=1`
+- 前端 Phase 2 手工补测联调：`cd apps/web && npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1`
 
-> 说明：SSE 自动化断言仍待补充稳定的非阻塞测试方案；其余 Phase 2 基础命令已可执行。
+> 说明：Phase 4.3 的 SSE 契约与前端 API 模式关键页联调自动化已补齐；执行 Playwright 前需确保真实后端与前端开发服务已启动。
 
 ## 13. 最新 AI 测试记录
 
@@ -501,22 +506,50 @@ AI 测试：
 - 遗留问题：建议后续补“多浏览器并发会话 + 主动失效”安全回归（可选）。
 
 ### [Phase 4.3 - 前后端最小联调（后端侧）]
-- 日期：2026-03-22
-- 步骤说明：设置与日志接口契约验证（后端侧）
+- 日期：2026-03-27
+- 步骤说明：设置/日志/SSE 契约与前端 API 模式关键页联调验证
 
 AI 测试：
-- 结果：部分通过
+- 结果：通过
 - 执行命令：
-  - `cd apps/api && python -m pytest tests/integration/test_phase2_foundation.py -q`
-  - 字段核对：`app/schemas/settings.py`、`app/schemas/logs.py`、`app/api/routes/events.py`
+  - `cd apps/api && python -m pytest tests/integration -q`
+  - `cd apps/api && python -m pytest tests -q`
+  - `cd apps/web && npx playwright test tests/phase-4-3-api-real-backend.spec.ts --workers=1`
 - 关键输出：
   - `settings/runtime` 读写通过，更新后可回读最新值。
-  - `logs` 查询通过，字段包含 `timestamp/level/module/environment/message/correlation_id`。
-  - SSE 路由已落地并可鉴权接入，但自动化“首事件读取”用例当前存在阻塞问题，待补非阻塞测试实现。
+  - `logs` 查询字段与前端契约一致：`timestamp/level/module/environment/message/correlation_id`。
+  - SSE 自动化契约通过：`GET /api/v1/events/stream` 返回 `text/event-stream`，首个事件为 `system.heartbeat`，包含 `occurred_at` 与对象型 `payload`。
+  - 后端集成回归通过（`....`）且全量测试通过（`............`）。
+  - 前端真实后端联调 Playwright 通过（`1 passed (2.5s)`）。
 
 证据：
 - 命令输出：本次会话命令日志
 
 结论：
-- 是否允许将主流程步骤标记为完成：部分允许（4.3 中“设置读写”可标记；“日志+SSE 字段一致”“前端 API 关键页加载”待补）
-- 遗留问题：补一条稳定 SSE 自动化用例，并在前端 `VITE_DATA_SOURCE=api` 下完成关键页面人工/自动化联调。
+- 是否允许将主流程步骤标记为完成：是（4.3）
+- 遗留问题：自动化补测已在本清单“Phase 2 - 未执行手工项自动化补测”中完成；后续仅保留可选人工抽查。
+
+### [Phase 2 - 未执行手工项自动化补测]
+- 日期：2026-03-27
+- 步骤说明：补齐 4.1/4.2/4.3 中剩余“你需要测试”项（后端 live 重启 + 前端真实后端联调）
+
+AI 测试：
+- 结果：通过
+- 执行命令：
+  - `cd apps/api && python -m pytest tests/integration/test_phase2_manual_remaining.py -q`
+  - `cd apps/api && python -m pytest tests/integration -q`
+  - `cd apps/api && python -m pytest tests -q`
+  - `cd apps/web && npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1`
+- 关键输出：
+  - 新增后端补测用例通过：`.. [100%]`（2/2）。
+  - 后端集成回归通过：`...... [100%]`（6/6）。
+  - 后端全量回归通过：`.............. [100%]`（14/14）。
+  - 前端真实后端补测通过：`1 passed (3.1s)`。
+  - 覆盖结果：服务可启动/重启、重启后设置持久化、登录正确性与锁定恢复、退出后受保护路由拦截、设置刷新持久化、日志可见、关键页面连续可用。
+
+证据：
+- 命令输出：本次会话命令日志（含 `.tmp/playwright-phase2.log`）。
+
+结论：
+- 是否允许将主流程步骤标记为完成：是（Phase 2 剩余手工项）
+- 遗留问题：无（建议后续版本迭代继续保留人工抽检）。

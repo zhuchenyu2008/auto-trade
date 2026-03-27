@@ -1,0 +1,172 @@
+# auto-trade
+
+[English](./README.md) | [简体中文](./README.zh-CN.md)
+
+`auto-trade` 是一个面向 AI 辅助交易控制台的 monorepo。
+当前实现主要聚焦于：
+
+- Web 控制台原型（`apps/web`）
+- 后端基础能力（`apps/api`）
+- 阶段清单与技术设计文档（`docs`）
+
+## 当前状态（2026-03-27）
+
+- Phase 1（Web 控制台原型）：核心页面已完成
+- Phase 2（后端基础与前后端接线）：已完成
+- Phase 3+（Telegram 接入、AI 决策引擎、OKX 执行、虚拟账本）：规划中/进行中
+
+当前项目已可用于本地 API/Web 联调与回归测试，但尚不是完整可用的端到端自动交易系统。
+
+## 仓库结构
+
+```text
+auto-trade/
+  apps/
+    api/        FastAPI 后端（认证、设置、日志、SSE、健康检查）
+    web/        React + Vite 控制台
+  docs/         需求、阶段清单、技术设计
+  README.md     英文版
+  README.zh-CN.md 中文版
+```
+
+## 技术栈
+
+- 后端：Python 3.11+、FastAPI、SQLAlchemy（async）、Redis
+- 前端：React 18、TypeScript、Vite
+- 存储：PostgreSQL + Redis
+- 测试：pytest、Playwright
+
+## 前置要求
+
+- Python 3.11+
+- Node.js 18+（推荐 Node 20）
+- npm
+- PostgreSQL 16+（或兼容版本）
+- Redis 7+（或兼容版本）
+
+## 快速开始
+
+### 1）启动依赖（PostgreSQL + Redis）
+
+如果你本地使用 Docker：
+
+```bash
+docker run -d --name auto-trade-postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=auto_trade -p 5432:5432 postgres:16
+docker run -d --name auto-trade-redis -p 6379:6379 redis:7
+```
+
+### 2）启动 API（`apps/api`）
+
+```bash
+cd apps/api
+python -m pip install -e .[dev]
+cp .env.example .env
+```
+
+生成密码哈希（示例密码：`123456`）：
+
+```bash
+python -c "from argon2 import PasswordHasher; print(PasswordHasher().hash('123456'))"
+```
+
+把生成结果填入 `.env` 的 `OWNER_PASSWORD_HASH`，然后启动：
+
+```bash
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+API 地址：`http://127.0.0.1:8000`
+
+### 3）启动 Web（`apps/web`）
+
+```bash
+cd apps/web
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Web 地址：`http://127.0.0.1:5173`
+
+如需连接真实后端，请设置：
+
+```env
+VITE_DATA_SOURCE=api
+VITE_API_BASE_URL=http://127.0.0.1:8000/api/v1
+VITE_ENABLE_SSE=true
+```
+
+## 环境变量
+
+### API（`apps/api/.env`）
+
+必填项：
+
+- `POSTGRES_DSN`（示例：`postgresql+asyncpg://postgres:postgres@localhost:5432/auto_trade`）
+- `REDIS_URL`（示例：`redis://localhost:6379/0`）
+- `OWNER_PASSWORD_HASH`（Argon2 哈希）
+
+常用项：
+
+- `APP_ENV`、`APP_HOST`、`APP_PORT`、`API_PREFIX`
+- `CORS_ORIGINS`（默认：`http://localhost:5173`）
+- `AUTO_CREATE_SCHEMA`（默认：`true`）
+
+### Web（`apps/web/.env`）
+
+- `VITE_DATA_SOURCE` = `mock` 或 `api`
+- `VITE_API_BASE_URL` = API 前缀基址（默认 `/api/v1`）
+- `VITE_ENABLE_SSE` = `true` 或 `false`
+
+## API 概览
+
+当前稳定基础接口：
+
+- 健康检查：`/health/live`、`/health/ready`、`/health/deps`
+- 认证：`/api/v1/auth/login`、`/api/v1/auth/session`、`/api/v1/auth/logout`
+- 运行时设置：`/api/v1/settings/runtime`
+- 日志：`/api/v1/logs`
+- SSE：`/api/v1/events/stream`
+
+用于前端联调的兼容接口（Phase 2 范围）：
+
+- `/api/v1/overview/summary`
+- `/api/v1/channels`（list/create/patch）
+- `/api/v1/manual-confirmations`
+- `/api/v1/orders`、`/api/v1/fills`、`/api/v1/real-positions`、`/api/v1/virtual-positions`
+
+说明：部分兼容资源当前仍为占位/空响应，会在后续阶段逐步补齐。
+
+## 常用命令
+
+### API
+
+```bash
+cd apps/api
+python -m pytest tests/unit -q
+python -m pytest tests/integration -q
+python -m pytest tests -q
+```
+
+### Web
+
+```bash
+cd apps/web
+npm run typecheck
+npm run build
+```
+
+API 模式下 E2E 示例：
+
+```bash
+cd apps/web
+npx playwright test tests/phase-4-3-api-real-backend.spec.ts --workers=1
+npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1
+```
+
+## 文档入口
+
+- 项目范围与说明：`docs/project-spec.md`、`docs/requirements-v1.md`
+- 阶段交付状态：`docs/project-phase-checklist.md`
+- 测试清单：`docs/project-phase-test-checklist.md`
+- 技术设计索引：`docs/technical-design/README.md`
