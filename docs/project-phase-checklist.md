@@ -1,8 +1,8 @@
 # 自动交易系统全流程执行清单（可勾选）
 
-> 更新时间：2026-03-27
+> 更新时间：2026-04-06
 > 说明：每完成一步，把 `- [ ]` 改成 `- [x]`。
-> 当前状态依据仓库现状自动预标记（文档和前端原型已完成较多，后端与交易链路尚未落地）。
+> 当前状态依据仓库现状自动预标记（文档、前端原型、Phase 2 后端骨架已完成；Phase 3.1/3.2 已完成并通过自动化代测）。
 
 ## 0. 项目范围与基线（已完成）
 
@@ -63,15 +63,22 @@
 ## 3. Phase 3：Telegram 接入与消息链路
 
 ### 3.1 频道采集能力
-- [ ] 支持 `t.me/s/<channel>` 轮询抓取（默认 30s）
-- [ ] 频道级 cursor 独立维护
-- [ ] 频道配置热更新（新增/编辑/停用无需重启）
+- [x] 支持 `t.me/s/<channel>` 轮询抓取（默认 30s）
+  - 完成说明：已实现 `TelegramPageFetcher` 与 `IntakeScheduler`，支持手动 `sync` 与后台轮询抓取。
+- [x] 频道级 cursor 独立维护
+  - 完成说明：已落地 `source_cursors`，维护 `last_seen_source_message_id` / `last_processed_source_message_id`。
+- [x] 频道配置热更新（新增/编辑/停用无需重启）
+  - 完成说明：调度器每轮重载频道配置，`/api/v1/intake/channels` 写入后可即时生效，无需重启服务。
 
 ### 3.2 消息处理能力
-- [ ] 落库 `raw_messages` 原始抓取记录
-- [ ] 标准化为 `normalized_messages`
-- [ ] 识别编辑消息并生成 `message_versions`
-- [ ] 去重与幂等（重复抓取不重复进入决策）
+- [x] 落库 `raw_messages` 原始抓取记录
+  - 完成说明：已落库原始抓取内容、抓取时间、变更类型、关联 `correlation_id`。
+- [x] 标准化为 `normalized_messages`
+  - 完成说明：已按 `channel_id + source_type + source_message_id` 维护标准化主记录。
+- [x] 识别编辑消息并生成 `message_versions`
+  - 完成说明：已按 `content_hash` 判定编辑并递增 `version_no`，写入 `message_versions`。
+- [x] 去重与幂等（重复抓取不重复进入决策）
+  - 完成说明：无变化重复抓取记为 `unchanged`，不重复版本化、不重复投递。
 
 ## 4. Phase 4：AI 决策与人工确认
 
@@ -181,3 +188,14 @@
 - 完成前端真实后端联调自动化：新增 `apps/web/tests/phase-4-3-api-real-backend.spec.ts`，在 `api` 模式下关键页面加载通过（`1 passed`）。
 - 完成 Phase 2 剩余手工项自动化补测：新增 `apps/api/tests/integration/test_phase2_manual_remaining.py`（服务重启/配置持久化/认证与基础链路）与 `apps/web/tests/phase-2-manual-checks-real-backend.spec.ts`（设置刷新持久化/日志可见/连续使用/退出保护）。
 - 完成 Phase 2 最新回归：`cd apps/api && python -m pytest tests -q`（14/14 通过），`npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1`（`1 passed`）。
+
+### 2026-04-06
+
+- 完成 Phase 3 后端最小可运行链路：新增频道/来源/cursor/消息主表与版本表，打通抓取、解析、变更判定、落库流程。
+- 完成 Telegram intake 接口：新增 `GET/POST/PATCH /api/v1/intake/channels` 与 `POST /api/v1/intake/channels/{channel_id}/sync`。
+- 完成兼容接口对齐：`/api/v1/channels`、`/api/v1/overview/summary` 从内存实现切换为数据库实现，与前端保持兼容。
+- 完成后台自动轮询调度：服务启动后自动按频道轮询抓取，支持热更新和停用。
+- 使用真实频道 `https://t.me/cryptoninjas_trading_ann` 验证：单次 `sync` 返回 `fetched_count=20/new_count=20`，并确认 `raw_messages/normalized_messages/message_versions` 均落库 20 条。
+- 完成 Phase 3 手工项自动化代测：新增 `apps/api/tests/integration/test_phase3_manual_checks_auto.py`，覆盖新增频道热生效、停用生效、单频道失败隔离、编辑消息版本递增与重复抓取去重。
+- 完成调度器稳健性修复：`intake_scheduler` 在失败日志中避免覆盖 logging 保留字段，确保单频道失败不会打断整轮调度。
+- 完成最新回归：`cd apps/api && python -m pytest tests -q`（21/21 通过）。

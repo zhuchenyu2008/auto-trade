@@ -10,7 +10,7 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 
 from app.api.response import error_response
-from app.api.routes import auth, compat, events, health, logs, settings as settings_routes
+from app.api.routes import auth, compat, events, health, intake, logs, settings as settings_routes
 from app.core.config import Settings, get_settings
 from app.core.context import (
     CORRELATION_ID_HEADER,
@@ -30,6 +30,8 @@ from app.db.session import create_engine, create_session_factory
 from app.realtime.sse_hub import SSEHub
 from app.services.auth_service import AuthService
 from app.services.events_service import EventsService
+from app.services.intake_service import IntakeService
+from app.services.intake_scheduler import IntakeScheduler
 from app.services.logs_service import LogsService
 from app.services.settings_service import SettingsService
 
@@ -56,20 +58,30 @@ async def lifespan(app: FastAPI):
     logs_service = LogsService(events_service)
     settings_service = SettingsService(settings, logs_service, events_service)
     auth_service = AuthService(settings, settings_service, logs_service)
+    intake_service = IntakeService(logs_service)
+    intake_scheduler = IntakeScheduler(
+        session_factory=session_factory,
+        intake_service=intake_service,
+        tick_seconds=max(0.1, float(settings.intake_scheduler_tick_seconds)),
+    )
 
     app.state.events_service = events_service
     app.state.logs_service = logs_service
     app.state.settings_service = settings_service
     app.state.auth_service = auth_service
+    app.state.intake_service = intake_service
+    app.state.intake_scheduler = intake_scheduler
 
     if settings.auto_create_schema:
         async with db_engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
 
+    intake_scheduler.start()
     logger.info("API startup completed")
     try:
         yield
     finally:
+        await intake_scheduler.close()
         await sse_hub.close()
         await redis.aclose()
         await db_engine.dispose()
@@ -163,6 +175,7 @@ def create_app() -> FastAPI:
     app.include_router(logs.router, prefix=settings.api_prefix)
     app.include_router(events.router, prefix=settings.api_prefix)
     app.include_router(compat.router, prefix=settings.api_prefix)
+    app.include_router(intake.router, prefix=settings.api_prefix)
 
     @app.get("/")
     async def index():

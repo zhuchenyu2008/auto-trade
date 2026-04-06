@@ -9,11 +9,12 @@ Current implementation is focused on:
 - Backend foundation (`apps/api`)
 - Phase checklists and technical design docs (`docs`)
 
-## Current Status (2026-03-27)
+## Current Status (2026-04-06)
 
 - Phase 1 (web console prototype): core pages completed
 - Phase 2 (backend foundation + frontend wiring): completed
-- Phase 3+ (Telegram intake, AI decision engine, OKX execution, virtual ledger): planned/in progress
+- Phase 3.1/3.2 (Telegram intake + message persistence): completed with automated manual-check coverage
+- Phase 3+ (AI decision engine, OKX execution, virtual ledger): planned/in progress
 
 The project is usable today for local API/web integration and regression tests, but it is not a complete end-to-end trading system yet.
 
@@ -126,6 +127,7 @@ Web URL: `http://127.0.0.1:5173`
 
 ```bash
 cd apps/api
+python -m pytest tests/integration/test_phase3_manual_checks_auto.py -q
 python -m pytest tests -q
 ```
 
@@ -187,6 +189,11 @@ Compatibility endpoints for frontend integration (Phase 2 scope):
 - `/api/v1/manual-confirmations`
 - `/api/v1/orders`, `/api/v1/fills`, `/api/v1/real-positions`, `/api/v1/virtual-positions`
 
+Phase 3 intake endpoints (backend minimum runnable):
+
+- `/api/v1/intake/channels` (list/create/patch)
+- `/api/v1/intake/channels/{channel_id}/sync`
+
 Note: some compatibility resources are currently placeholder/empty responses and will be implemented in later phases.
 
 ## Common Commands
@@ -197,6 +204,7 @@ Note: some compatibility resources are currently placeholder/empty responses and
 cd apps/api
 python -m pytest tests/unit -q
 python -m pytest tests/integration -q
+python -m pytest tests/integration/test_phase3_manual_checks_auto.py -q
 python -m pytest tests -q
 ```
 

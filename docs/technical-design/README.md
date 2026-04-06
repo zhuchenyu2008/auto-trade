@@ -129,7 +129,7 @@ flowchart LR
 
 - [01-system-architecture.md](./01-system-architecture.md)：总体架构、模块边界、运行时拓扑
 - [02-data-and-state.md](./02-data-and-state.md)：数据库、Redis、状态模型、唯一键和回放策略
-- [03-telegram-intake.md](./03-telegram-intake.md)：抓取、解析、版本识别、cursor 和错误处理
+- [03-telegram-intake.md](./03-telegram-intake.md)：抓取、解析、版本识别、cursor、调度策略、可观测性与 Phase 3 验收准入
 - [04-ai-decision.md](./04-ai-decision.md)：上下文构建、模型调用、结构化输出、确认门控
 - [05-okx-execution.md](./05-okx-execution.md)：执行规划、订单模型、OKX 网关、状态同步
 - [06-virtual-ledger-and-risk.md](./06-virtual-ledger-and-risk.md)：虚拟子仓位、PnL、风险与对账

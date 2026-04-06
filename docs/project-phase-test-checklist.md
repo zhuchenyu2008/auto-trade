@@ -1,6 +1,6 @@
 # 自动交易系统分工测试清单（AI + 人工）
 
-> 更新时间：2026-03-27（AI 测试已执行：Phase 0、Phase 3.1~3.4、Phase 4.1、Phase 4.2、Phase 4.3）
+> 更新时间：2026-04-06（AI 测试已执行：Phase 0、Phase 3.1~3.4、Phase 4.1、Phase 4.2、Phase 4.3、Phase 5.1、Phase 5.2）
 > 对应主流程清单：`docs/project-phase-checklist.md`
 > 使用规则：每个步骤完成后，先做 AI 测试，再做人工测试；两边都通过，才把主流程步骤标记为完成。
 
@@ -107,26 +107,26 @@ AI 需要测试：
 ### 5.1 频道采集能力完成后
 
 AI 需要测试：
-- [ ] 轮询调度按默认 30s 触发。
-- [ ] 每频道 cursor 独立推进。
-- [ ] 单频道抓取失败不会阻塞其他频道。
+- [x] 轮询调度按默认 30s 触发。
+- [x] 每频道 cursor 独立推进。
+- [x] 单频道抓取失败不会阻塞其他频道。
 
 你需要测试：
-- [ ] 新增频道后无需重启即可开始抓取。
-- [ ] 停用频道后不再继续抓取。
-- [ ] 一个频道异常时，其他频道仍正常更新。
+- [x] 新增频道后无需重启即可开始抓取。
+- [x] 停用频道后不再继续抓取。
+- [x] 一个频道异常时，其他频道仍正常更新。
 
 ### 5.2 消息标准化与版本管理完成后
 
 AI 需要测试：
-- [ ] `raw_messages` 与 `normalized_messages` 落库正确。
-- [ ] 编辑消息会新增 `message_versions`，而不是覆盖旧版本。
-- [ ] 重复无变化消息不会重复进入决策。
+- [x] `raw_messages` 与 `normalized_messages` 落库正确。
+- [x] 编辑消息会新增 `message_versions`，而不是覆盖旧版本。
+- [x] 重复无变化消息不会重复进入决策。
 
 你需要测试：
-- [ ] 手动检查同一消息编辑后版本号递增。
-- [ ] 控制台可区分新消息和编辑消息。
-- [ ] 重复抓取场景下不会重复触发后续动作。
+- [x] 手动检查同一消息编辑后版本号递增。
+- [x] 控制台可区分新消息和编辑消息。
+- [x] 重复抓取场景下不会重复触发后续动作。
 
 ## 6. Phase 4：AI 决策与人工确认
 
@@ -335,6 +335,8 @@ AI 测试：
 - 后端 SSE 契约测试：`cd apps/api && python -m pytest tests/integration/test_sse_heartbeat_contract.py -q`
 - 后端 Phase 2 手工补测自动化：`cd apps/api && python -m pytest tests/integration/test_phase2_manual_remaining.py -q`
 - 后端全量测试回归：`cd apps/api && python -m pytest tests -q`
+- Phase 3 intake 最小链路集成测试：`cd apps/api && python -m pytest tests/integration/test_phase3_intake_basic.py -q`
+- Phase 3 手工项自动化代测：`cd apps/api && python -m pytest tests/integration/test_phase3_manual_checks_auto.py -q`
 - 前端真实后端联调（Phase 4.3）：`cd apps/web && npx playwright test tests/phase-4-3-api-real-backend.spec.ts --workers=1`
 - 前端 Phase 2 手工补测联调：`cd apps/web && npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1`
 
@@ -553,3 +555,50 @@ AI 测试：
 结论：
 - 是否允许将主流程步骤标记为完成：是（Phase 2 剩余手工项）
 - 遗留问题：无（建议后续版本迭代继续保留人工抽检）。
+
+### [Phase 5.1 - 频道采集能力（后端最小链路）]
+- 日期：2026-04-06
+- 步骤说明：完成 Telegram 网页抓取、频道级 cursor、后台轮询调度最小可运行链路
+
+AI 测试：
+- 结果：通过（全部条目）
+- 执行命令：
+  - `cd apps/api && python -m pytest tests/integration/test_phase3_intake_basic.py -q`
+  - `cd apps/api && python -m pytest tests/integration/test_phase3_manual_checks_auto.py -q`
+  - `cd apps/api && python -m pytest tests -q`
+  - 真实链路验证脚本：创建频道 -> `POST /api/v1/intake/channels/{channel_id}/sync`（频道：`https://t.me/cryptoninjas_trading_ann`）
+- 关键输出：
+  - `test_phase3_intake_basic.py` 通过，覆盖创建频道、手动同步、重复同步去重。
+  - `test_phase3_manual_checks_auto.py` 通过（`2 passed`），覆盖新增频道热生效、停用生效、失败频道不阻塞正常频道。
+  - 真实频道同步返回 `fetched_count=20/new_count=20/edited_count=0/unchanged_count=0`。
+  - cursor 已推进到 `last_seen_source_message_id=8961`、`last_processed_source_message_id=8961`。
+
+证据：
+- 命令输出：本次会话命令日志
+
+结论：
+- 是否允许将主流程步骤标记为完成：是（AI + 自动化代测）
+- 遗留问题：无。
+
+### [Phase 5.2 - 消息标准化与版本管理（后端最小链路）]
+- 日期：2026-04-06
+- 步骤说明：完成 `raw_messages`、`normalized_messages`、`message_versions` 落库与无变化去重
+
+AI 测试：
+- 结果：通过（全部条目）
+- 执行命令：
+  - `cd apps/api && python -m pytest tests/integration/test_phase3_intake_basic.py -q`
+  - `cd apps/api && python -m pytest tests/integration/test_phase3_manual_checks_auto.py -q`
+  - `cd apps/api && python -m pytest tests/unit/test_intake_parser.py -q`
+  - 数据库校验脚本：按频道统计 `raw_messages/normalized_messages/message_versions` 条数
+- 关键输出：
+  - 真实频道首次同步落库：`raw_messages=20`、`normalized_messages=20`、`message_versions=20`。
+  - 重复同步场景 `unchanged_count=2`，无重复版本化。
+  - `test_phase3_manual_checks_auto.py` 覆盖同一 `source_message_id` 编辑版本递增（`version_count=2`）、`last_message_result` 新增/编辑可区分、重复抓取不重复版本化。
+
+证据：
+- 命令输出：本次会话命令日志
+
+结论：
+- 是否允许将主流程步骤标记为完成：是（AI + 自动化代测）
+- 遗留问题：无。

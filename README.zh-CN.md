@@ -9,11 +9,12 @@
 - 后端基础能力（`apps/api`）
 - 阶段清单与技术设计文档（`docs`）
 
-## 当前状态（2026-03-27）
+## 当前状态（2026-04-06）
 
 - Phase 1（Web 控制台原型）：核心页面已完成
 - Phase 2（后端基础与前后端接线）：已完成
-- Phase 3+（Telegram 接入、AI 决策引擎、OKX 执行、虚拟账本）：规划中/进行中
+- Phase 3.1/3.2（Telegram 接入与消息落库）：已完成并补齐自动化代测
+- Phase 3+（AI 决策引擎、OKX 执行、虚拟账本）：规划中/进行中
 
 当前项目已可用于本地 API/Web 联调与回归测试，但尚不是完整可用的端到端自动交易系统。
 
@@ -127,6 +128,7 @@ Web 地址：`http://127.0.0.1:5173`
 
 ```bash
 cd apps/api
+python -m pytest tests/integration/test_phase3_manual_checks_auto.py -q
 python -m pytest tests -q
 ```
 
@@ -188,6 +190,11 @@ npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1
 - `/api/v1/manual-confirmations`
 - `/api/v1/orders`、`/api/v1/fills`、`/api/v1/real-positions`、`/api/v1/virtual-positions`
 
+Phase 3 intake 最小可运行接口：
+
+- `/api/v1/intake/channels`（list/create/patch）
+- `/api/v1/intake/channels/{channel_id}/sync`
+
 说明：部分兼容资源当前仍为占位/空响应，会在后续阶段逐步补齐。
 
 ## 常用命令
@@ -198,6 +205,7 @@ npx playwright test tests/phase-2-manual-checks-real-backend.spec.ts --workers=1
 cd apps/api
 python -m pytest tests/unit -q
 python -m pytest tests/integration -q
+python -m pytest tests/integration/test_phase3_manual_checks_auto.py -q
 python -m pytest tests -q
 ```
 

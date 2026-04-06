@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     auto_create_schema: bool = True
     sse_heartbeat_seconds: int = 10
+    intake_scheduler_tick_seconds: float = Field(default=5.0, alias="INTAKE_SCHEDULER_TICK_SECONDS")
 
     runtime_default_environment: Literal["paper", "live"] = "paper"
     runtime_default_global_trading_enabled: bool = True

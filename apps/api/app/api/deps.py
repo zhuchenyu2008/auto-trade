@@ -11,6 +11,7 @@ from app.core.context import RequestContext, get_request_context
 from app.schemas.auth import SessionResponse
 from app.services.auth_service import AuthService
 from app.services.events_service import EventsService
+from app.services.intake_service import IntakeService
 from app.services.logs_service import LogsService
 from app.services.settings_service import SettingsService
 
@@ -43,6 +44,10 @@ def get_settings_service(request: Request) -> SettingsService:
 
 def get_logs_service(request: Request) -> LogsService:
     return request.app.state.logs_service
+
+
+def get_intake_service(request: Request) -> IntakeService:
+    return request.app.state.intake_service
 
 
 def get_events_service(request: Request) -> EventsService:
